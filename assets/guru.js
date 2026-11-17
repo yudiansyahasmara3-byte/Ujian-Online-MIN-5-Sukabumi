@@ -126,7 +126,7 @@ document.addEventListener('click', e => {
   if (t.dataset.e) buka(t.dataset.e);
   if (t.id === 'hg') gambar('');
   if (t.dataset.p) { t.checked ? PILIH.add(t.dataset.p) : PILIH.delete(t.dataset.p); $('hps').disabled = !PILIH.size; }
-  if (t.dataset.t) { ['soal', 'admin'].forEach(x => { $(x).hidden = x !== t.dataset.t; $('t-' + x).setAttribute('aria-selected', x === t.dataset.t); }); pesan(''); if (t.dataset.t === 'admin') aksi(muatGuru); }
+  if (t.dataset.t) { ['soal', 'ujian', 'admin'].forEach(x => { $(x).hidden = x !== t.dataset.t; $('t-' + x).setAttribute('aria-selected', x === t.dataset.t); }); pesan(''); if (t.dataset.t === 'admin') aksi(muatGuru); if (t.dataset.t === 'ujian') aksi(muatUjian); }
 });
 $('fm').onchange = $('cari').oninput = render;
 $('tipe').onchange = () => bangun($('tipe').value);

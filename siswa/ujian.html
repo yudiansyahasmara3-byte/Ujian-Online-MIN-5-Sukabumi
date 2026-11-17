@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ruang Ujian - MIN 5 Sukabumi</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+body{display:block;padding:0}[hidden]{display:none!important}
+#awal{max-width:560px;margin:0 auto;padding:24px}#awal li{margin:6px 0}
+#ruang{min-height:100vh;display:flex;flex-direction:column;user-select:none;-webkit-user-select:none}
+#ruang input[type=text],#ruang textarea{user-select:text;-webkit-user-select:text}
+.hd{display:flex;gap:16px;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--hijau);color:#fff;flex-wrap:wrap}
+.hd b{font:700 1.05rem Georgia,serif}#wkt{font-size:1.3rem;font-weight:700;font-variant-numeric:tabular-nums}#wkt.mepet{color:#ffd37a}
+.isi{flex:1;display:grid;grid-template-columns:1fr 220px;gap:20px;padding:20px;max-width:1000px;width:100%;margin:0 auto}
+@media(max-width:760px){.isi{grid-template-columns:1fr}}
+#tks{font-size:1.15rem;white-space:pre-wrap;margin:6px 0 12px}#img{max-width:100%;max-height:300px;display:block;margin:0 0 12px}
+.pil{display:flex;gap:10px;align-items:flex-start;padding:12px;border:1.5px solid var(--garis);border-radius:8px;margin:8px 0;background:#fff;cursor:pointer}
+.pil input{width:auto;margin-top:4px}.jd{display:flex;gap:10px;align-items:center;margin:8px 0}.jd span{flex:1}.jd select{flex:1;padding:10px;font:inherit;border:1.5px solid var(--garis);border-radius:6px}
+#jwb textarea{width:100%;min-height:160px;padding:12px;font:inherit;border:1.5px solid var(--garis);border-radius:6px}
+.nav{display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:6px}
+.nav button{padding:8px 0;border:1.5px solid var(--garis);border-radius:6px;background:#fff;font:inherit;cursor:pointer}
+.nav .sudah{background:#d8ece3;border-color:var(--hijau)}.nav .kini{outline:3px solid var(--emas)}
+.kaki{display:flex;gap:10px;justify-content:space-between;margin-top:20px}
+.kaki button,.btn{padding:10px 18px;border:1.5px solid var(--hijau);border-radius:6px;background:#fff;color:var(--hijau);font:inherit;font-weight:600;cursor:pointer}.kaki .utama,.btn.utama{background:var(--hijau);color:#fff}
+.tabir{position:fixed;inset:0;background:#102520f2;color:#fff;display:grid;place-items:center;text-align:center;padding:24px;z-index:10}.tabir div{max-width:480px}.tabir h2{font:700 1.5rem Georgia,serif}
+#info{font-size:.85rem;color:#6a7d75;margin-top:8px}
+</style></head><body>
+<div id="awal">
+  <h1 id="jd">Ruang Ujian</h1>
+  <p class="sub">Baca petunjuk ini sebelum mulai.</p>
+  <ul>
+    <li>Ujian berjalan dalam <b>layar penuh</b>. Gunakan Chrome di laptop, Chromebook, atau tablet Android.</li>
+    <li>Jangan membuka tab atau aplikasi lain, dan jangan keluar dari layar penuh. Setiap kali itu terjadi, tercatat <b>1 pelanggaran</b>.</li>
+    <li>Jika pelanggaran mencapai batas, ujian <b>dikumpulkan otomatis</b>.</li>
+    <li>Jawaban tersimpan otomatis. Waktu dihitung oleh server dan tetap berjalan jika Anda keluar.</li>
+  </ul>
+  <button class="go" id="mulai">Mulai dan masuk layar penuh</button>
+  <p class="err" id="err" role="alert"></p><p><a href="index.html">Kembali ke daftar ujian</a></p>
+</div>
+
+<div id="ruang" hidden>
+  <div class="hd"><b id="hj"></b><span id="pel"></span><span id="wkt">--:--</span></div>
+  <div class="isi">
+    <div><p id="no" class="sub" style="margin-bottom:0"></p><img id="img" alt="Gambar soal" hidden><p id="tks"></p><div id="jwb"></div>
+      <div class="kaki"><button id="sblm">Sebelumnya</button><button id="sbrk" class="utama">Berikutnya</button></div><p id="info"></p></div>
+    <aside><p class="sub" style="margin-bottom:8px">Daftar soal</p><div class="nav" id="nav"></div>
+      <button class="go" id="kmp" style="margin-top:20px">Kumpulkan</button></aside>
+  </div>
+</div>
+
+<div class="tabir" id="blok" hidden><div><h2>Anda keluar dari layar ujian</h2><p id="blokp"></p><button class="btn utama" id="balik">Kembali ke layar penuh</button></div></div>
+<div class="tabir" id="konf" hidden><div><h2>Kumpulkan jawaban?</h2><p id="konfp"></p><button class="btn" id="tdk">Periksa lagi</button> <button class="btn utama" id="ya">Ya, kumpulkan</button></div></div>
+<div class="tabir" id="akhir" hidden><div><h2>Ujian selesai</h2><p>Jawaban Anda sudah terkirim. Nilai akan diumumkan oleh guru.</p><a class="btn utama" href="index.html" style="text-decoration:none;display:inline-block">Kembali ke daftar ujian</a></div></div>
+
+<script src="../assets/config.js"></script>
+<script src="../assets/app.js"></script>
+<script src="../assets/ujian.js"></script>
+</body></html>

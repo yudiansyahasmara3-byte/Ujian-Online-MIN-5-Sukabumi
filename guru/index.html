@@ -18,7 +18,7 @@ dialog textarea{width:100%;padding:10px;border:1.5px solid var(--garis);border-r
 h2{font:700 1.2rem Georgia,serif;margin:20px 0 8px}[hidden]{display:none!important}
 </style></head><body><div class="w">
 <div class="top"><h1>Ruang Guru</h1><span id="salam"></span><button id="bpw">Ganti password</button><button onclick="keluar()">Keluar</button></div>
-<div class="tabs" role="tablist"><button id="t-soal" data-t="soal" aria-selected="true">Bank soal</button><button id="t-admin" data-t="admin" aria-selected="false" hidden>Admin</button></div>
+<div class="tabs" role="tablist"><button id="t-soal" data-t="soal" aria-selected="true">Bank soal</button><button id="t-ujian" data-t="ujian" aria-selected="false">Ujian</button><button id="t-admin" data-t="admin" aria-selected="false" hidden>Admin</button></div>
 <p class="err" id="err" role="alert"></p>
 
 <section id="soal">
@@ -31,6 +31,10 @@ h2{font:700 1.2rem Georgia,serif;margin:20px 0 8px}[hidden]{display:none!importa
   <div class="tab"><table><thead><tr><th></th><th>Tipe</th><th>Mapel</th><th>Tingkat</th><th>Soal</th><th></th></tr></thead><tbody id="tb"></tbody></table></div>
 </section>
 
+<section id="ujian" hidden>
+  <div class="tool"><button class="utama" id="ubaru">Buat ujian</button></div>
+  <div class="tab"><table><thead><tr><th>Ujian</th><th>Kelas</th><th>Token</th><th>Jadwal</th><th>Soal</th><th>Peserta</th><th>Status</th><th></th></tr></thead><tbody id="tu"></tbody></table></div>
+</section>
 <section id="admin" hidden>
   <h2>Tambah guru</h2>
   <form id="fg"><div class="row6">
@@ -57,9 +61,25 @@ h2{font:700 1.2rem Georgia,serif;margin:20px 0 8px}[hidden]{display:none!importa
   <p class="err" id="derr" role="alert"></p>
   <div class="aksi"><button type="button" id="batal">Batal</button><button type="button" class="utama" id="simpan">Simpan soal</button></div>
 </dialog>
+<dialog id="udlg"><h2 id="ujd" style="margin-top:0">Buat ujian</h2>
+  <label for="ujudul">Judul ujian</label><input id="ujudul" placeholder="Contoh: PTS Matematika Kelas 5">
+  <div class="g2" style="grid-template-columns:1fr 1fr 1fr"><div><label for="umapel">Mapel</label><input id="umapel" list="dm"></div>
+  <div><label for="ukelas">Kelas</label><input id="ukelas" placeholder="5A atau 5A,5B atau semua"></div>
+  <div><label for="udurasi">Durasi (menit)</label><input id="udurasi" type="number" min="1" value="60"></div></div>
+  <div class="g2" style="grid-template-columns:1fr 1fr 1fr"><div><label for="umulai">Mulai (opsional)</label><input id="umulai" type="datetime-local"></div>
+  <div><label for="uselesai">Selesai (opsional)</label><input id="uselesai" type="datetime-local"></div>
+  <div><label for="utoken">Token (kosong = otomatis)</label><input id="utoken" maxlength="10"></div></div>
+  <div class="g2" style="grid-template-columns:1fr 1fr"><div><label for="umaks">Batas pelanggaran</label><input id="umaks" type="number" min="1" value="3"></div>
+  <div><label><input type="checkbox" id="uacak" style="width:auto" checked> Acak urutan soal dan pilihan</label></div></div>
+  <p class="ket"><b id="un">0</b> soal dipilih. Daftar mengikuti mapel yang diisi.</p>
+  <div id="usoal" style="max-height:220px;overflow:auto;border:1.5px solid var(--garis);border-radius:6px;padding:6px"></div>
+  <p class="err" id="uerr" role="alert"></p>
+  <div class="aksi"><button type="button" id="ubatal">Batal</button><button type="button" class="utama" id="usimpan">Simpan ujian</button></div>
+</dialog>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="../assets/config.js"></script>
 <script src="../assets/app.js"></script>
 <script src="../assets/guru.js"></script>
+<script src="../assets/ujian-guru.js"></script>
 </body></html>

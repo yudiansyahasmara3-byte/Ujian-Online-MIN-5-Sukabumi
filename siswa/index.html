@@ -3,12 +3,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Ruang Siswa - Ujian MIN 5 Sukabumi</title>
 <link rel="stylesheet" href="../assets/style.css">
+<style>.kartu{background:#fff;border:1.5px solid var(--garis);border-radius:8px;padding:16px;margin:12px 0}.kartu h2{margin:0 0 4px;font:700 1.15rem Georgia,serif}.kartu p{margin:4px 0;color:#4d6159}.kartu input{margin-top:10px}.ok{color:var(--hijau)!important;font-weight:600}</style>
 </head><body><main>
-<div class="bar"><h1>Ruang Siswa</h1><button onclick="keluar()">Keluar</button></div>
+<div class="bar"><h1>Daftar Ujian</h1><button onclick="keluar()">Keluar</button></div>
 <p class="sub" id="salam">Memuat...</p>
-<p>Login berhasil. Fitur di halaman ini dibangun pada tahap berikutnya.</p>
+<p class="err" id="err" role="alert"></p>
+<div id="daftar"></div>
 </main>
 <script src="../assets/config.js"></script>
 <script src="../assets/app.js"></script>
-<script>guard('siswa').then(u => { if(u) document.getElementById('salam').textContent = 'Halo, ' + u.nama + '.'; });</script>
+<script src="../assets/siswa.js"></script>
 </body></html>
