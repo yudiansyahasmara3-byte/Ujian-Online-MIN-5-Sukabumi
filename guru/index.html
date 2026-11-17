@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ruang Guru - Ujian MIN 5 Sukabumi</title>
+<link rel="stylesheet" href="../assets/style.css">
+<style>
+body{display:block;padding:0}.w{max-width:1000px;margin:0 auto;padding:20px}
+.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.top h1{flex:1;margin:0}
+.top button,.tool button,.tool label.bt,td button,dialog button{padding:8px 12px;border:1.5px solid var(--hijau);border-radius:6px;background:#fff;color:var(--hijau);font:inherit;font-weight:600;cursor:pointer}
+.tool{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0}.tool input[type=search],.tool select{width:auto;padding:8px}
+.tool .utama,dialog .utama{background:var(--hijau);color:#fff}.tool label.bt{margin:0}button:disabled{opacity:.5;cursor:not-allowed}
+.tab{overflow-x:auto}table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:8px 10px;border-bottom:1px solid var(--garis);text-align:left;vertical-align:top}th{background:#eaf1ed}
+dialog{width:min(640px,94vw);border:0;border-radius:10px;padding:20px}dialog::backdrop{background:#0008}
+dialog textarea{width:100%;padding:10px;border:1.5px solid var(--garis);border-radius:6px;font:inherit}
+.g2{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px}.op{display:flex;gap:8px;align-items:center;margin:6px 0}.op input[type=radio],.op input[type=checkbox]{width:auto}
+.ket{color:#4d6159;margin:10px 0 4px}#prev img{max-width:100%;max-height:160px;display:block;margin:8px 0}
+.aksi{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}.row6{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+h2{font:700 1.2rem Georgia,serif;margin:20px 0 8px}[hidden]{display:none!important}
+</style></head><body><div class="w">
+<div class="top"><h1>Ruang Guru</h1><span id="salam"></span><button id="bpw">Ganti password</button><button onclick="keluar()">Keluar</button></div>
+<div class="tabs" role="tablist"><button id="t-soal" data-t="soal" aria-selected="true">Bank soal</button><button id="t-admin" data-t="admin" aria-selected="false" hidden>Admin</button></div>
+<p class="err" id="err" role="alert"></p>
+
+<section id="soal">
+  <div class="tool">
+    <button class="utama" id="baru">Tambah soal</button>
+    <label class="bt">Impor Excel<input type="file" id="imp" accept=".xlsx,.xls,.csv" hidden></label>
+    <button id="tpl">Unduh template</button><button id="eks">Ekspor Excel</button><button id="hps" disabled>Hapus terpilih</button>
+    <select id="fm" aria-label="Filter mapel"></select><input type="search" id="cari" placeholder="Cari teks soal" aria-label="Cari soal">
+  </div>
+  <div class="tab"><table><thead><tr><th></th><th>Tipe</th><th>Mapel</th><th>Tingkat</th><th>Soal</th><th></th></tr></thead><tbody id="tb"></tbody></table></div>
+</section>
+
+<section id="admin" hidden>
+  <h2>Tambah guru</h2>
+  <form id="fg"><div class="row6">
+    <div><label for="gn">Nama</label><input id="gn" required></div><div><label for="gu">Username</label><input id="gu" required></div>
+    <div><label for="gp">Password awal</label><input id="gp" type="password" minlength="6" required></div>
+    <div><label for="gr">Peran</label><select id="gr"><option value="guru">Guru</option><option value="admin">Admin</option></select></div>
+    <div><label for="gm">Mapel</label><input id="gm"></div><div><label for="gk">Kelas</label><input id="gk"></div>
+  </div><button class="go" style="width:auto;padding:10px 20px">Tambah guru</button></form>
+  <h2>Daftar guru</h2>
+  <div class="tab"><table><thead><tr><th>Nama</th><th>Username</th><th>Peran</th><th>Mapel</th><th>Kelas</th></tr></thead><tbody id="tg"></tbody></table></div>
+  <h2>Impor siswa</h2>
+  <p class="ket">Kolom: nisn, nama, kelas, pin (boleh kosong, akan dibuatkan PIN acak 6 digit).</p>
+  <div class="tool"><button id="tsw">Unduh template siswa</button><label class="bt utama">Impor siswa dari Excel<input type="file" id="isw" accept=".xlsx,.xls,.csv" hidden></label></div>
+</section>
+
+<dialog id="dlg"><h2 id="jd" style="margin-top:0">Tambah soal</h2>
+  <div class="g2"><div><label for="mapel">Mapel</label><input id="mapel" list="dm"><datalist id="dm"></datalist></div>
+  <div><label for="tingkat">Tingkat/kelas</label><input id="tingkat"></div><div><label for="bobot">Bobot</label><input id="bobot" type="number" min="1" value="1"></div></div>
+  <label for="tipe">Tipe soal</label>
+  <select id="tipe" style="width:100%;padding:12px;border:1.5px solid var(--garis);border-radius:6px;font:inherit"><option value="pg">Pilihan ganda</option><option value="pgk">PG kompleks (jawaban lebih dari satu)</option><option value="bs">Benar/Salah</option><option value="jodoh">Menjodohkan</option><option value="isian">Isian singkat</option><option value="essay">Essay</option></select>
+  <label for="teks">Teks soal</label><textarea id="teks" rows="4"></textarea>
+  <label for="berkas">Gambar soal (opsional)</label><input type="file" id="berkas" accept="image/*"><div id="prev"></div>
+  <div id="area"></div>
+  <p class="err" id="derr" role="alert"></p>
+  <div class="aksi"><button type="button" id="batal">Batal</button><button type="button" class="utama" id="simpan">Simpan soal</button></div>
+</dialog>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="../assets/config.js"></script>
+<script src="../assets/app.js"></script>
+<script src="../assets/guru.js"></script>
+</body></html>

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ujian Online MIN 5 Sukabumi</title>
+<link rel="stylesheet" href="assets/style.css">
+</head><body><main>
+<h1>Ujian Online MIN 5 Sukabumi</h1>
+<p class="sub">Masuk sesuai peran Anda.</p>
+<div class="tabs" role="tablist">
+  <button role="tab" id="t-siswa" aria-selected="true">Siswa</button>
+  <button role="tab" id="t-guru" aria-selected="false">Guru</button>
+</div>
+<form id="f-siswa">
+  <label for="nisn">NISN</label><input id="nisn" inputmode="numeric" autocomplete="username" required>
+  <label for="pin">PIN</label><input id="pin" type="password" autocomplete="current-password" required>
+  <button class="go">Masuk sebagai siswa</button>
+</form>
+<form id="f-guru" hidden>
+  <label for="un">Username</label><input id="un" autocomplete="username" required>
+  <label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" required>
+  <button class="go">Masuk sebagai guru</button>
+</form>
+<p class="err" id="err" role="alert"></p>
+<p class="foot">Lupa PIN atau password? Hubungi operator madrasah.</p>
+</main>
+<script src="assets/config.js"></script>
+<script src="assets/app.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+function tab(p){
+  $('f-siswa').hidden = p!=='siswa'; $('f-guru').hidden = p!=='guru';
+  $('t-siswa').setAttribute('aria-selected', p==='siswa'); $('t-guru').setAttribute('aria-selected', p==='guru');
+  $('err').textContent='';
+}
+$('t-siswa').onclick = () => tab('siswa'); $('t-guru').onclick = () => tab('guru');
+async function kirim(e, action, data, tujuan){
+  e.preventDefault();
+  const b = e.target.querySelector('button'); b.disabled = true; $('err').textContent='';
+  try {
+    const r = await api(action, data);
+    sessionStorage.setItem('tok', r.token);
+    location.href = tujuan(r.user);
+  } catch(x){ $('err').textContent = x.message; b.disabled = false; }
+}
+$('f-siswa').onsubmit = e => kirim(e,'loginSiswa',{nisn:$('nisn').value,pin:$('pin').value},()=>'siswa/index.html');
+$('f-guru').onsubmit = e => kirim(e,'loginGuru',{username:$('un').value,password:$('pw').value},()=>'guru/index.html');
+</script></body></html>

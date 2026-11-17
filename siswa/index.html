@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ruang Siswa - Ujian MIN 5 Sukabumi</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head><body><main>
+<div class="bar"><h1>Ruang Siswa</h1><button onclick="keluar()">Keluar</button></div>
+<p class="sub" id="salam">Memuat...</p>
+<p>Login berhasil. Fitur di halaman ini dibangun pada tahap berikutnya.</p>
+</main>
+<script src="../assets/config.js"></script>
+<script src="../assets/app.js"></script>
+<script>guard('siswa').then(u => { if(u) document.getElementById('salam').textContent = 'Halo, ' + u.nama + '.'; });</script>
+</body></html>
