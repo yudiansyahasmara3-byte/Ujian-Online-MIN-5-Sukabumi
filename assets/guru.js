@@ -117,7 +117,7 @@ async function kecil(file) {
 /* ---------- Admin ---------- */
 async function muatGuru() {
   const d = (await api('daftarGuru')).data;
-  $('tg').innerHTML = d.map(g => `<tr><td>${esc(g.nama)}</td><td>${esc(g.username)}</td><td>${esc(g.peran)}</td><td>${esc(g.mapel)}</td><td>${esc(g.kelas)}</td></tr>`).join('');
+  $('tg').innerHTML = d.map(g => `<tr><td>${esc(g.nama)}</td><td>${esc(g.username)}</td><td>${esc(g.peran)}</td><td>${esc(g.mapel)}</td><td>${esc(g.kelas)}</td><td>${g.aktif ? 'Aktif' : 'Nonaktif'}</td><td><button data-rg="${g.id}">Reset password</button> <button data-ag="${g.id}" data-v="${g.aktif ? 0 : 1}">${g.aktif ? 'Nonaktifkan' : 'Aktifkan'}</button></td></tr>`).join('');
 }
 
 /* ---------- Peristiwa ---------- */

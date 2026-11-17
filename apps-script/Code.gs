@@ -86,7 +86,7 @@ function doPost(e) {
   let r;
   try {
     const q = JSON.parse(e.postData.contents);
-    const A = { loginGuru, loginSiswa, me, logout, gantiPassword, tambahGuru, imporSiswa, daftarGuru, simpanUjian, daftarUjian, statusUjian, ujianSiswa, mulaiUjian, simpanJawaban, laporPelanggaran, kumpulkan, daftarSoal, simpanSoal, hapusSoal, imporSoal, unggahGambar };
+    const A = { loginGuru, loginSiswa, me, logout, gantiPassword, tambahGuru, imporSiswa, daftarGuru, monitorUjian, tutupPaksa, ulangSiswa, daftarEssay, simpanKoreksi, laporanUjian, daftarSiswa, resetPin, aktifSiswa, resetGuru, aktifGuru, simpanUjian, daftarUjian, statusUjian, ujianSiswa, mulaiUjian, simpanJawaban, laporPelanggaran, kumpulkan, daftarSoal, simpanSoal, hapusSoal, imporSoal, unggahGambar };
     if (!A[q.action]) throw new Error('Aksi tidak dikenal.');
     r = A[q.action](q);
   } catch (x) { r = { ok: false, error: String(x.message || x) }; }
@@ -334,7 +334,7 @@ function ses_(uid, nisn) {
   const c = CacheService.getScriptCache(), k = 'R_' + uid + '_' + nisn, ss = SpreadsheetApp.getActive();
   const J = ss.getSheetByName('Jawaban'), Hs = ss.getSheetByName('Hasil');
   const m = parse_(c.get(k) || 'null');
-  if (m) { const jv = J.getRange(m.j, 1, 1, 2).getValues()[0]; if (String(jv[0]) === uid && String(jv[1]) === nisn) return { m: m, J: J, Hs: Hs }; }
+  if (m) { const jv = J.getRange(m.j, 1, 1, 2).getValues()[0], hh = Hs.getRange(m.h, 1, 1, 2).getValues()[0]; if (String(jv[0]) === uid && String(jv[1]) === nisn && String(hh[0]) === uid && String(hh[1]) === nisn) return { m: m, J: J, Hs: Hs }; }
   const jr = rows_('Jawaban').find(r => r.ujian_id === uid && String(r.nisn) === nisn);
   const hr = rows_('Hasil').find(r => r.ujian_id === uid && String(r.nisn) === nisn);
   if (!jr || !hr) return null;
@@ -430,19 +430,177 @@ function nilai_(r, a) {
   if (t === 'isian') { const f = v => String(v).trim().toLowerCase().replace(/\s+/g, ' '); return [].concat(k).some(x => f(x) === f(a)) ? 1 : 0; }
   return 0;
 }
-function kumpul_(u, x) {
-  const hv = hv_(x);
-  if (hv[5] !== 'berjalan') return { ok: true, selesai: true };
-  const st = st_(x), bank = {}; rows_('BankSoal').forEach(r => bank[r.id] = r);
+// Hitung nilai dari jawaban (st.a) dan skor essay yang sudah dikoreksi guru (st.e)
+function hitung_(st, bank) {
   let got = 0, tot = 0, b = 0, sl = 0, es = false;
   st.o.forEach(id => {
     const r = bank[id]; if (!r) return;
     const w = Number(r.bobot) || 1; tot += w;
-    const f = nilai_(r, st.a[id]);
-    if (f === null) { es = true; return; }
-    got += w * f; if (f === 1) b++; else sl++;
+    let f = nilai_(r, st.a[id]);
+    if (f === null) {
+      const e = (st.e || {})[id];
+      if (e !== undefined) f = e / w;
+      else if (!String(st.a[id] || '').trim()) f = 0; // essay kosong = 0
+      else { es = true; return; }
+    }
+    got += w * f; if (f >= 1) b++; else sl++;
   });
-  const nilai = tot ? Math.round(got / tot * 10000) / 100 : 0;
-  x.Hs.getRange(x.m.h, 3, 1, 6).setValues([[nilai, b, sl, es ? 'menunggu koreksi' : 'selesai', hv[6], Date.now()]]);
+  return { nilai: tot ? Math.round(got / tot * 10000) / 100 : 0, b: b, sl: sl, es: es };
+}
+function kumpul_(u, x) {
+  const hv = hv_(x);
+  if (hv[5] !== 'berjalan') return { ok: true, selesai: true };
+  const bank = {}; rows_('BankSoal').forEach(r => bank[r.id] = r);
+  const h = hitung_(st_(x), bank);
+  x.Hs.getRange(x.m.h, 3, 1, 6).setValues([[h.nilai, h.b, h.sl, h.es ? 'menunggu koreksi' : 'selesai', hv[6], Date.now()]]);
   return { ok: true, selesai: true };
+}
+
+/* ---------- TAHAP 4: Monitoring, koreksi, laporan, pengelolaan ---------- */
+function milik_(q) {
+  const s = auth_(q, ['guru', 'admin']), u = rows_('Ujian').find(r => r.id === q.id);
+  if (!u || (s.peran !== 'admin' && u.guru_id !== s.id)) throw new Error('Ujian tidak ditemukan.');
+  return { s: s, u: u };
+}
+
+function monitorUjian(q) {
+  const u = milik_(q).u, id = u.id, Hh = {}, Jj = {}, Pp = {};
+  rows_('Hasil').filter(r => r.ujian_id === id).forEach(r => Hh[String(r.nisn)] = r);
+  rows_('Jawaban').filter(r => r.ujian_id === id).forEach(r => Jj[String(r.nisn)] = parse_(r.jawaban));
+  rows_('Pelanggaran').filter(r => r.ujian_id === id).forEach(r => { const n = String(r.nisn); Pp[n] = (Pp[n] || 0) + 1; });
+  const siswa = rows_('Siswa').filter(r => aktif_(r.aktif) && kelasCocok_(u.kelas, r.kelas)).map(r => {
+    const n = String(r.nisn), h = Hh[n], st = Jj[n] || {};
+    return { nisn: n, nama: r.nama, kelas: String(r.kelas), status: h ? (h.status === 'berjalan' ? 'mengerjakan' : h.status) : 'belum',
+      terjawab: Object.keys(st.a || {}).length, pel: Pp[n] || 0 };
+  });
+  return { ok: true, total: parse_(u.soal || '[]').length, siswa: siswa };
+}
+
+function tutupPaksa(q) {
+  const u = milik_(q).u; let n = 0;
+  const target = q.nisn ? [String(q.nisn)] : rows_('Hasil').filter(r => r.ujian_id === u.id && r.status === 'berjalan').map(r => String(r.nisn));
+  target.forEach(nisn => { const x = ses_(u.id, nisn); if (x && hv_(x)[5] === 'berjalan') { kumpul_(u, x); n++; } });
+  return { ok: true, jumlah: n };
+}
+
+function ulangSiswa(q) {
+  const m = milik_(q), u = m.u, nisn = String(q.nisn), ss = SpreadsheetApp.getActive();
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    const jr = rows_('Jawaban').find(r => r.ujian_id === u.id && String(r.nisn) === nisn);
+    const hr = rows_('Hasil').find(r => r.ujian_id === u.id && String(r.nisn) === nisn);
+    if (jr) ss.getSheetByName('Jawaban').deleteRow(jr._row);
+    if (hr) ss.getSheetByName('Hasil').deleteRow(hr._row);
+    CacheService.getScriptCache().remove('R_' + u.id + '_' + nisn);
+    log_(m.s.id, 'ulang_ujian', u.id + ':' + nisn);
+  } finally { lock.releaseLock(); }
+  return { ok: true };
+}
+
+function daftarEssay(q) {
+  const u = milik_(q).u, bank = {}; rows_('BankSoal').forEach(r => bank[r.id] = r);
+  const soal = parse_(u.soal || '[]').filter(id => bank[id] && bank[id].tipe === 'essay')
+    .map(id => ({ id: id, teks: String(bank[id].teks).trim(), kunci: String(parse_(bank[id].kunci) || ''), bobot: Number(bank[id].bobot) || 1 }));
+  if (!soal.length) return { ok: true, soal: [], jawab: [] };
+  const sis = {}; rows_('Siswa').forEach(r => sis[String(r.nisn)] = r);
+  const done = {}; rows_('Hasil').filter(r => r.ujian_id === u.id && r.status !== 'berjalan').forEach(r => done[String(r.nisn)] = 1);
+  const jawab = [];
+  rows_('Jawaban').filter(r => r.ujian_id === u.id && done[String(r.nisn)]).forEach(r => {
+    const st = parse_(r.jawaban), n = String(r.nisn), s = sis[n] || {};
+    jawab.push({ nisn: n, nama: s.nama || n, kelas: String(s.kelas || ''), a: st.a || {}, e: st.e || {} });
+  });
+  jawab.sort((a, b) => String(a.nama).localeCompare(String(b.nama)));
+  return { ok: true, soal: soal, jawab: jawab };
+}
+
+// q.data = [{nisn, skor:{soal_id: poin}}]
+function simpanKoreksi(q) {
+  const m = milik_(q), u = m.u, bank = {}; rows_('BankSoal').forEach(r => bank[r.id] = r);
+  let n = 0;
+  (q.data || []).forEach(d => {
+    const x = ses_(u.id, String(d.nisn)); if (!x || hv_(x)[5] === 'berjalan') return;
+    const st = st_(x); st.e = st.e || {};
+    Object.keys(d.skor || {}).forEach(sid => {
+      const r = bank[sid], p = Number(d.skor[sid]);
+      if (!r || r.tipe !== 'essay' || st.o.indexOf(sid) < 0 || isNaN(p)) return;
+      st.e[sid] = Math.max(0, Math.min(Number(r.bobot) || 1, p));
+    });
+    tulis_(x, st);
+    const h = hitung_(st, bank);
+    x.Hs.getRange(x.m.h, 3, 1, 4).setValues([[h.nilai, h.b, h.sl, h.es ? 'menunggu koreksi' : 'selesai']]);
+    n++;
+  });
+  log_(m.s.id, 'koreksi', u.id + ': ' + n + ' siswa');
+  return { ok: true, jumlah: n };
+}
+
+function laporanUjian(q) {
+  const u = milik_(q).u, bank = {}, sis = {}, J = {}, P = {};
+  rows_('BankSoal').forEach(r => bank[r.id] = r); rows_('Siswa').forEach(r => sis[String(r.nisn)] = r);
+  rows_('Jawaban').filter(r => r.ujian_id === u.id).forEach(r => J[String(r.nisn)] = parse_(r.jawaban));
+  rows_('Pelanggaran').filter(r => r.ujian_id === u.id).forEach(r => { const n = String(r.nisn); P[n] = (P[n] || 0) + 1; });
+  const peserta = rows_('Hasil').filter(r => r.ujian_id === u.id).map(r => {
+    const n = String(r.nisn), s = sis[n] || {};
+    return { nisn: n, nama: s.nama || n, kelas: String(s.kelas || ''), nilai: r.nilai === '' ? null : Number(r.nilai), benar: r.benar, salah: r.salah, status: r.status, pel: P[n] || 0 };
+  });
+  const done = peserta.filter(p => p.status !== 'berjalan' && p.nilai !== null).sort((a, b) => b.nilai - a.nilai);
+  const k = Math.max(1, Math.round(done.length * 0.27)), avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+  const soal = parse_(u.soal || '[]').filter(id => bank[id]).map((id, i) => {
+    const r = bank[id], w = Number(r.bobot) || 1;
+    const fs = done.map(p => {
+      const st = J[p.nisn]; if (!st) return null;
+      let f = nilai_(r, (st.a || {})[id]);
+      if (f === null) { const e = (st.e || {})[id]; f = e === undefined ? null : e / w; }
+      return f;
+    });
+    const up = avg(fs.slice(0, k).filter(f => f !== null)), lo = avg(fs.slice(-k).filter(f => f !== null));
+    let dist = null;
+    if (r.tipe === 'pg' || r.tipe === 'pgk') {
+      const o = parse_(r.opsi || '[]'); dist = o.map(() => 0).concat([0]);
+      done.forEach(p => {
+        const a = ((J[p.nisn] || {}).a || {})[id];
+        if (a === undefined || a === '' || (Array.isArray(a) && !a.length)) dist[o.length]++;
+        else [].concat(a).forEach(x => { if (dist[x] !== undefined) dist[x]++; });
+      });
+    }
+    return { no: i + 1, tipe: r.tipe, teks: String(r.teks).trim().slice(0, 80), p: avg(fs.filter(f => f !== null)),
+      d: (done.length >= 4 && up !== null && lo !== null) ? up - lo : null, dist: dist, kunci: dist ? parse_(r.kunci) : null };
+  });
+  return { ok: true, judul: u.judul, mapel: u.mapel, kelas: u.kelas, peserta: peserta, soal: soal };
+}
+
+function daftarSiswa(q) {
+  auth_(q, 'admin');
+  return { ok: true, data: rows_('Siswa').map(r => ({ nisn: String(r.nisn), nama: r.nama, kelas: String(r.kelas), aktif: aktif_(r.aktif) })) };
+}
+function resetPin(q) {
+  const s = auth_(q, 'admin'), r = rows_('Siswa').find(r => String(r.nisn) === String(q.nisn));
+  if (!r) throw new Error('Siswa tidak ditemukan.');
+  const pin = String(Math.floor(100000 + Math.random() * 900000));
+  SpreadsheetApp.getActive().getSheetByName('Siswa').getRange(r._row, H.Siswa.indexOf('pin') + 1).setValue(hash_(pin));
+  log_(s.id, 'reset_pin', r.nisn);
+  return { ok: true, pin: pin };
+}
+function aktifSiswa(q) {
+  const s = auth_(q, 'admin'), r = rows_('Siswa').find(r => String(r.nisn) === String(q.nisn));
+  if (!r) throw new Error('Siswa tidak ditemukan.');
+  SpreadsheetApp.getActive().getSheetByName('Siswa').getRange(r._row, H.Siswa.indexOf('aktif') + 1).setValue(q.aktif ? true : false);
+  log_(s.id, q.aktif ? 'aktifkan_siswa' : 'nonaktifkan_siswa', r.nisn);
+  return { ok: true };
+}
+function resetGuru(q) {
+  const s = auth_(q, 'admin'), r = rows_('Guru').find(r => r.id === q.id);
+  if (!r) throw new Error('Guru tidak ditemukan.');
+  if (String(q.password || '').length < 6) throw new Error('Password minimal 6 karakter.');
+  SpreadsheetApp.getActive().getSheetByName('Guru').getRange(r._row, H.Guru.indexOf('pass') + 1).setValue(hash_(q.password));
+  log_(s.id, 'reset_guru', r.username);
+  return { ok: true };
+}
+function aktifGuru(q) {
+  const s = auth_(q, 'admin'), r = rows_('Guru').find(r => r.id === q.id);
+  if (!r) throw new Error('Guru tidak ditemukan.');
+  if (r.id === s.id) throw new Error('Anda tidak bisa menonaktifkan akun sendiri.');
+  SpreadsheetApp.getActive().getSheetByName('Guru').getRange(r._row, H.Guru.indexOf('aktif') + 1).setValue(q.aktif ? true : false);
+  log_(s.id, q.aktif ? 'aktifkan_guru' : 'nonaktifkan_guru', r.username);
+  return { ok: true };
 }

@@ -5,7 +5,7 @@ async function muatUjian() {
   UJ = (await api('daftarUjian')).data;
   $('tu').innerHTML = UJ.length ? UJ.map(u => `<tr><td>${esc(u.judul)}<br><small>${esc(u.mapel)} | ${u.durasi} menit</small></td><td>${esc(u.kelas)}</td>
     <td><code>${esc(u.token)}</code></td><td><small>${fmt(u.mulai)}<br>s/d ${fmt(u.selesai)}</small></td><td>${u.soal.length}</td><td>${u.selesaiN}/${u.mulaiN} selesai</td>
-    <td>${u.status === 'buka' ? 'Dibuka' : 'Ditutup'}</td><td><button data-ue="${u.id}">Ubah</button> <button data-us="${u.id}" data-v="${u.status === 'buka' ? 'tutup' : 'buka'}">${u.status === 'buka' ? 'Tutup' : 'Buka'}</button></td></tr>`).join('')
+    <td>${u.status === 'buka' ? 'Dibuka' : 'Ditutup'}</td><td><button data-up="${u.id}">Panel</button> <button data-ue="${u.id}">Ubah</button> <button data-us="${u.id}" data-v="${u.status === 'buka' ? 'tutup' : 'buka'}">${u.status === 'buka' ? 'Tutup' : 'Buka'}</button></td></tr>`).join('')
     : '<tr><td colspan="8">Belum ada ujian. Klik "Buat ujian". Pastikan bank soal sudah terisi.</td></tr>';
 }
 function daftarSoalPilih() {

@@ -16,6 +16,7 @@ dialog textarea{width:100%;padding:10px;border:1.5px solid var(--garis);border-r
 .ket{color:#4d6159;margin:10px 0 4px}#prev img{max-width:100%;max-height:160px;display:block;margin:8px 0}
 .aksi{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}.row6{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
 h2{font:700 1.2rem Georgia,serif;margin:20px 0 8px}[hidden]{display:none!important}
+.lencana{padding:2px 8px;border-radius:10px;font-size:.85rem;background:#eaf1ed;white-space:nowrap}.bar-h{height:16px;background:var(--hijau);border-radius:3px}.kts{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}.kt{flex:1;min-width:120px;background:#eaf1ed;border-radius:8px;padding:10px}.kt b{display:block;font-size:1.4rem}.kt small{color:#4d6159}#pdlg h3{margin:18px 0 6px}#pdlg .tab{max-height:420px;overflow:auto}
 </style></head><body><div class="w">
 <div class="top"><h1>Ruang Guru</h1><span id="salam"></span><button id="bpw">Ganti password</button><button onclick="keluar()">Keluar</button></div>
 <div class="tabs" role="tablist"><button id="t-soal" data-t="soal" aria-selected="true">Bank soal</button><button id="t-ujian" data-t="ujian" aria-selected="false">Ujian</button><button id="t-admin" data-t="admin" aria-selected="false" hidden>Admin</button></div>
@@ -44,12 +45,24 @@ h2{font:700 1.2rem Georgia,serif;margin:20px 0 8px}[hidden]{display:none!importa
     <div><label for="gm">Mapel</label><input id="gm"></div><div><label for="gk">Kelas</label><input id="gk"></div>
   </div><button class="go" style="width:auto;padding:10px 20px">Tambah guru</button></form>
   <h2>Daftar guru</h2>
-  <div class="tab"><table><thead><tr><th>Nama</th><th>Username</th><th>Peran</th><th>Mapel</th><th>Kelas</th></tr></thead><tbody id="tg"></tbody></table></div>
+  <div class="tab"><table><thead><tr><th>Nama</th><th>Username</th><th>Peran</th><th>Mapel</th><th>Kelas</th><th>Status</th><th></th></tr></thead><tbody id="tg"></tbody></table></div>
   <h2>Impor siswa</h2>
   <p class="ket">Kolom: nisn, nama, kelas, pin (boleh kosong, akan dibuatkan PIN acak 6 digit).</p>
   <div class="tool"><button id="tsw">Unduh template siswa</button><label class="bt utama">Impor siswa dari Excel<input type="file" id="isw" accept=".xlsx,.xls,.csv" hidden></label></div>
+  <h2>Daftar siswa</h2>
+  <div class="tool"><select id="sk" aria-label="Filter kelas"></select><input type="search" id="sc" placeholder="Cari nama atau NISN" aria-label="Cari siswa"></div>
+  <div class="tab"><table><thead><tr><th>NISN</th><th>Nama</th><th>Kelas</th><th>Status</th><th></th></tr></thead><tbody id="ts"></tbody></table></div>
 </section>
 
+<dialog id="pdlg" style="width:min(980px,96vw)">
+  <div class="bar"><h2 id="pj" style="margin:0"></h2><button type="button" id="ptutup">Tutup</button></div>
+  <div class="tabs" style="margin-top:12px"><button type="button" data-pt="pantau" aria-selected="true">Pantau</button><button type="button" data-pt="koreksi" aria-selected="false">Koreksi essay</button><button type="button" data-pt="laporan" aria-selected="false">Laporan</button></div>
+  <p class="err" id="perr" role="alert"></p>
+  <div id="pantau"><div class="tool"><label style="margin:0;display:flex;gap:6px;align-items:center"><input type="checkbox" id="oto" style="width:auto" checked> Perbarui otomatis (10 detik)</label><button type="button" id="pall">Kumpulkan semua yang masih mengerjakan</button></div>
+    <p class="ket" id="ring"></p><div class="tab"><table><thead><tr><th>Nama</th><th>Kelas</th><th>Status</th><th>Terjawab</th><th>Pelanggaran</th><th></th></tr></thead><tbody id="tp"></tbody></table></div></div>
+  <div id="koreksi" hidden></div>
+  <div id="laporan" hidden><div class="tool"><label style="margin:0;display:flex;gap:6px;align-items:center">KKM <input id="kkm" type="number" value="70" min="0" max="100" style="width:80px"></label><button type="button" id="lxls">Ekspor Excel</button></div><div id="lisi"></div></div>
+</dialog>
 <dialog id="dlg"><h2 id="jd" style="margin-top:0">Tambah soal</h2>
   <div class="g2"><div><label for="mapel">Mapel</label><input id="mapel" list="dm"><datalist id="dm"></datalist></div>
   <div><label for="tingkat">Tingkat/kelas</label><input id="tingkat"></div><div><label for="bobot">Bobot</label><input id="bobot" type="number" min="1" value="1"></div></div>
@@ -82,4 +95,5 @@ h2{font:700 1.2rem Georgia,serif;margin:20px 0 8px}[hidden]{display:none!importa
 <script src="../assets/app.js"></script>
 <script src="../assets/guru.js"></script>
 <script src="../assets/ujian-guru.js"></script>
+<script src="../assets/panel.js"></script>
 </body></html>
