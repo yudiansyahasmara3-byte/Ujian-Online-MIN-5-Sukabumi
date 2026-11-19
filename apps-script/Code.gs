@@ -7,12 +7,13 @@ const H = {
   Siswa: ['nisn','nama','kelas','pin','aktif'],
   Kelas: ['kelas','wali'],
   Mapel: ['kode','nama'],
-  BankSoal: ['id','guru_id','mapel','tingkat','tipe','teks','gambar','opsi','kunci','bobot'],
+  BankSoal: ['id','guru_id','mapel','tingkat','tipe','teks','gambar','opsi','kunci','bobot','stimulus','audio'],
   Ujian: ['id','guru_id','judul','mapel','kelas','token','durasi','mulai','selesai','acak','maks_langgar','status','soal'],
   Jawaban: ['ujian_id','nisn','soal_id','jawaban','waktu'],
   Hasil: ['ujian_id','nisn','nilai','benar','salah','status','mulai','selesai'],
   Pelanggaran: ['ujian_id','nisn','jenis','waktu','poin'],
-  Log: ['waktu','pengguna','aksi','detail']
+  Log: ['waktu','pengguna','aksi','detail'],
+  Pengaturan: ['kunci','nilai']
 };
 
 // Jalankan sekali untuk mengatur ulang login admin ke: admin / Admin123
@@ -41,6 +42,8 @@ function setup() {
   ss.getSheetByName('Siswa').getRange('A:A').setNumberFormat('@'); // NISN teks
   ['Jawaban', 'Hasil', 'Pelanggaran'].forEach(n => ss.getSheetByName(n).getRange('B:B').setNumberFormat('@'));
   ss.getSheetByName('Ujian').getRange('F:F').setNumberFormat('@'); // token teks
+  ss.getSheetByName('Pengaturan').getRange('B:B').setNumberFormat('@');
+  ss.getSheetByName('Kelas').getRange('A:A').setNumberFormat('@');
   const d = ss.getSheetByName('Sheet1') || ss.getSheetByName('Sheet 1') || ss.getSheetByName('Lembar1');
   if (d && d.getLastRow() === 0) ss.deleteSheet(d);
   const g = ss.getSheetByName('Guru');
@@ -86,7 +89,7 @@ function doPost(e) {
   let r;
   try {
     const q = JSON.parse(e.postData.contents);
-    const A = { loginGuru, loginSiswa, me, logout, gantiPassword, tambahGuru, imporSiswa, daftarGuru, monitorUjian, tutupPaksa, ulangSiswa, daftarEssay, simpanKoreksi, laporanUjian, daftarSiswa, resetPin, aktifSiswa, resetGuru, aktifGuru, simpanUjian, daftarUjian, statusUjian, ujianSiswa, mulaiUjian, simpanJawaban, laporPelanggaran, kumpulkan, daftarSoal, simpanSoal, hapusSoal, imporSoal, unggahGambar };
+    const A = { loginGuru, loginSiswa, me, logout, gantiPassword, tambahGuru, imporSiswa, daftarGuru, daftarMaster, simpanMaster, hapusMaster, ambilPengaturan, simpanPengaturan, cadangkanSekarang, daftarCadangan, rekapNilai, unggahAudio, monitorUjian, tutupPaksa, ulangSiswa, daftarEssay, simpanKoreksi, laporanUjian, daftarSiswa, resetPin, aktifSiswa, resetGuru, aktifGuru, simpanUjian, daftarUjian, statusUjian, ujianSiswa, mulaiUjian, simpanJawaban, laporPelanggaran, kumpulkan, daftarSoal, simpanSoal, hapusSoal, imporSoal, unggahGambar };
     if (!A[q.action]) throw new Error('Aksi tidak dikenal.');
     r = A[q.action](q);
   } catch (x) { r = { ok: false, error: String(x.message || x) }; }
@@ -162,6 +165,7 @@ function imporSiswa(q) {
       hasil.push({ nisn: n, nama: d.nama, kelas: d.kelas || '', pin: pin });
     });
     if (baru.length) sh.getRange(sh.getLastRow() + 1, 1, baru.length, 5).setValues(baru);
+    kelasBaru_(hasil.map(h => h.kelas));
     log_(s.id, 'impor_siswa', baru.length + ' siswa');
     return { ok: true, ditambah: baru.length, daftar: hasil };
   } finally { lock.releaseLock(); }
@@ -170,7 +174,7 @@ function imporSiswa(q) {
 /* ---------- TAHAP 2: Admin & Bank Soal ---------- */
 // pg: opsi=[teks], kunci=indeks | pgk: kunci=[indeks] | bs: kunci='B'/'S'
 // jodoh: opsi=[[kiri,kanan]] | isian: kunci=[jawaban diterima] | essay: kunci=pedoman
-const TIPE = ['pg', 'pgk', 'bs', 'jodoh', 'isian', 'essay'];
+const TIPE = ['pg', 'pgk', 'bs', 'jodoh', 'isian', 'essay', 'urut', 'rumpang'];
 
 function daftarGuru(q) {
   auth_(q, 'admin');
@@ -182,29 +186,37 @@ function newId_() { return 'Q' + Utilities.getUuid().slice(0, 8); }
 
 function norm_(x) {
   const s = { mapel: String(x.mapel || '').trim(), tingkat: String(x.tingkat || '').trim(), tipe: String(x.tipe || '').trim().toLowerCase(),
-    teks: String(x.teks || '').trim(), gambar: String(x.gambar || '').trim(), opsi: x.opsi || [], kunci: x.kunci === undefined ? '' : x.kunci,
-    bobot: Number(x.bobot) > 0 ? Number(x.bobot) : 1 };
+    teks: String(x.teks || '').trim(), gambar: String(x.gambar || '').trim(), stimulus: String(x.stimulus || '').trim(), audio: String(x.audio || '').trim(),
+    opsi: x.opsi || [], kunci: x.kunci === undefined ? '' : x.kunci, bobot: Number(x.bobot) > 0 ? Number(x.bobot) : 1 };
   const n = s.opsi.length;
   if (TIPE.indexOf(s.tipe) < 0) throw new Error('Tipe soal tidak dikenal.');
   if (!s.mapel) throw new Error('Mapel wajib diisi.');
   if (!s.teks && !s.gambar) throw new Error('Isi teks atau gambar soal.');
   if (s.gambar && !/^https:\/\//.test(s.gambar)) throw new Error('Alamat gambar harus diawali https://');
+  if (s.audio && !/^https:\/\//.test(s.audio)) throw new Error('Alamat audio harus diawali https://');
   if (s.tipe === 'pg' && (n < 2 || !Number.isInteger(s.kunci) || s.kunci < 0 || s.kunci >= n)) throw new Error('Pilihan ganda: isi minimal 2 pilihan dan tandai 1 kunci.');
   if (s.tipe === 'pgk' && (n < 2 || !Array.isArray(s.kunci) || !s.kunci.length)) throw new Error('PG kompleks: isi minimal 2 pilihan dan tandai kunci.');
   if (s.tipe === 'bs' && ['B', 'S'].indexOf(s.kunci) < 0) throw new Error('Pilih kunci Benar atau Salah.');
   if (s.tipe === 'jodoh' && (n < 2 || s.opsi.some(p => !p[0] || !p[1]))) throw new Error('Menjodohkan: isi minimal 2 pasangan lengkap.');
   if (s.tipe === 'isian' && (!Array.isArray(s.kunci) || !s.kunci.length)) throw new Error('Isian singkat: isi minimal 1 jawaban yang diterima.');
+  if (s.tipe === 'urut') { if (n < 2 || n > 8) throw new Error('Mengurutkan: isi 2 sampai 8 item dengan urutan yang benar.'); s.kunci = ''; }
+  if (s.tipe === 'rumpang') {
+    const k = []; s.teks.replace(/\{\{(.+?)\}\}/g, (m, a) => { k.push(a.split('|').map(t => t.trim()).filter(Boolean)); return m; });
+    if (!k.length || k.some(a => !a.length)) throw new Error('Isian rumpang: tandai bagian kosong dengan {{jawaban}}.');
+    s.kunci = k; s.opsi = [];
+  }
   return s;
 }
 function baris_(id, guru, x) {
-  return [id, guru, safe_(x.mapel), safe_(x.tingkat), x.tipe, safe_(x.teks), x.gambar, JSON.stringify(x.opsi), JSON.stringify(x.kunci), x.bobot];
+  return [id, guru, safe_(x.mapel), safe_(x.tingkat), x.tipe, safe_(x.teks), x.gambar, JSON.stringify(x.opsi), JSON.stringify(x.kunci), x.bobot, safe_(x.stimulus), x.audio];
 }
 
 function daftarSoal(q) {
-  const s = auth_(q, ['guru', 'admin']);
+  const s = auth_(q, ['guru', 'admin']), g = {};
+  if (s.peran === 'admin') rows_('Guru').forEach(r => g[r.id] = r.nama);
   const data = rows_('BankSoal').filter(r => s.peran === 'admin' || r.guru_id === s.id).map(r => ({
-    id: r.id, guru_id: r.guru_id, mapel: r.mapel, tingkat: String(r.tingkat), tipe: r.tipe, teks: String(r.teks).trim(), gambar: r.gambar,
-    opsi: parse_(r.opsi || '[]'), kunci: parse_(r.kunci), bobot: Number(r.bobot) || 1 }));
+    id: r.id, guru_id: r.guru_id, pemilik: g[r.guru_id] || '', mapel: r.mapel, tingkat: String(r.tingkat), tipe: r.tipe, teks: String(r.teks).trim(), gambar: r.gambar,
+    stimulus: String(r.stimulus || '').trim(), audio: r.audio || '', opsi: parse_(r.opsi || '[]'), kunci: parse_(r.kunci), bobot: Number(r.bobot) || 1 }));
   return { ok: true, data: data };
 }
 
@@ -218,7 +230,7 @@ function simpanSoal(q) {
       const r = rows_('BankSoal').find(r => r.id === q.soal.id);
       if (!r) throw new Error('Soal tidak ditemukan.');
       if (s.peran !== 'admin' && r.guru_id !== s.id) throw new Error('Itu bukan soal Anda.');
-      sh.getRange(r._row, 1, 1, 10).setValues([baris_(r.id, r.guru_id, x)]);
+      sh.getRange(r._row, 1, 1, 12).setValues([baris_(r.id, r.guru_id, x)]);
       return { ok: true, id: r.id };
     }
     const id = newId_(); sh.appendRow(baris_(id, s.id, x));
@@ -247,7 +259,7 @@ function imporSoal(q) {
       try { baru.push(baris_(newId_(), s.id, norm_(d))); } catch (e) { gagal.push({ baris: i + 2, error: e.message }); }
     });
     const sh = SpreadsheetApp.getActive().getSheetByName('BankSoal');
-    if (baru.length) sh.getRange(sh.getLastRow() + 1, 1, baru.length, 10).setValues(baru);
+    if (baru.length) sh.getRange(sh.getLastRow() + 1, 1, baru.length, 12).setValues(baru);
     log_(s.id, 'impor_soal', baru.length + ' soal');
     return { ok: true, ditambah: baru.length, gagal: gagal };
   } finally { lock.releaseLock(); }
@@ -381,8 +393,12 @@ function mulaiUjian(q) {
   const st = st_(x), bank = {}; rows_('BankSoal').forEach(r => bank[r.id] = r);
   const soal = st.o.filter(id => bank[id]).map(id => {
     const r = bank[id], t = r.tipe, o = parse_(r.opsi || '[]');
-    return { id: id, tipe: t, teks: String(r.teks).trim(), gambar: r.gambar, bobot: Number(r.bobot) || 1,
-      opsi: t === 'jodoh' ? { k: o.map(p => p[0]), r: shuffle_(o.map(p => p[1])) } : (t === 'pg' || t === 'pgk' ? o : []) };
+    let teks = String(r.teks).trim(), opsi = [];
+    if (t === 'jodoh') opsi = { k: o.map(p => p[0]), r: shuffle_(o.map(p => p[1])) };
+    else if (t === 'pg' || t === 'pgk') opsi = o;
+    else if (t === 'urut') { opsi = shuffle_(o); for (let i = 0; i < 5 && o.length > 1 && opsi.join('\u0001') === o.join('\u0001'); i++) opsi = shuffle_(o); }
+    else if (t === 'rumpang') teks = teks.replace(/\{\{.+?\}\}/g, '{{_}}');
+    return { id: id, tipe: t, teks: teks, gambar: r.gambar, stimulus: String(r.stimulus || '').trim(), audio: r.audio || '', bobot: Number(r.bobot) || 1, opsi: opsi };
   });
   return { ok: true, judul: u.judul, soal: soal, a: st.a, p: st.p || 0, maks: Number(u.maks_langgar) || 3, acak: aktif_(u.acak), sisaMs: sisa };
 }
@@ -428,6 +444,12 @@ function nilai_(r, a) {
   if (t === 'bs') return a === k ? 1 : 0;
   if (t === 'jodoh') { let n = 0; o.forEach((p, i) => { if (String((a || [])[i] || '').trim() === String(p[1]).trim()) n++; }); return n / o.length; }
   if (t === 'isian') { const f = v => String(v).trim().toLowerCase().replace(/\s+/g, ' '); return [].concat(k).some(x => f(x) === f(a)) ? 1 : 0; }
+  if (t === 'urut') { let c = 0; o.forEach((v, i) => { if (String((a || [])[i] || '').trim() === String(v).trim()) c++; }); return o.length ? c / o.length : 0; }
+  if (t === 'rumpang') {
+    const f = v => String(v).trim().toLowerCase().replace(/\s+/g, ' '); let c = 0;
+    k.forEach((alts, i) => { if ([].concat(alts).some(x => f(x) === f((a || [])[i] || ''))) c++; });
+    return k.length ? c / k.length : 0;
+  }
   return 0;
 }
 // Hitung nilai dari jawaban (st.a) dan skor essay yang sudah dikoreksi guru (st.e)
@@ -541,7 +563,7 @@ function laporanUjian(q) {
   rows_('Pelanggaran').filter(r => r.ujian_id === u.id).forEach(r => { const n = String(r.nisn); P[n] = (P[n] || 0) + 1; });
   const peserta = rows_('Hasil').filter(r => r.ujian_id === u.id).map(r => {
     const n = String(r.nisn), s = sis[n] || {};
-    return { nisn: n, nama: s.nama || n, kelas: String(s.kelas || ''), nilai: r.nilai === '' ? null : Number(r.nilai), benar: r.benar, salah: r.salah, status: r.status, pel: P[n] || 0 };
+    return { nisn: n, nama: s.nama || n, kelas: String(s.kelas || ''), nilai: r.nilai === '' ? null : Number(r.nilai), benar: r.benar, salah: r.salah, status: r.status, pel: P[n] || 0, mulai: ms_(r.mulai), selesai: ms_(r.selesai) };
   });
   const done = peserta.filter(p => p.status !== 'berjalan' && p.nilai !== null).sort((a, b) => b.nilai - a.nilai);
   const k = Math.max(1, Math.round(done.length * 0.27)), avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
@@ -566,7 +588,10 @@ function laporanUjian(q) {
     return { no: i + 1, tipe: r.tipe, teks: String(r.teks).trim().slice(0, 80), p: avg(fs.filter(f => f !== null)),
       d: (done.length >= 4 && up !== null && lo !== null) ? up - lo : null, dist: dist, kunci: dist ? parse_(r.kunci) : null };
   });
-  return { ok: true, judul: u.judul, mapel: u.mapel, kelas: u.kelas, peserta: peserta, soal: soal };
+  const ada = {}; peserta.forEach(p => ada[p.nisn] = 1);
+  const wajib = rows_('Siswa').filter(r => aktif_(r.aktif) && kelasCocok_(u.kelas, r.kelas));
+  return { ok: true, judul: u.judul, mapel: u.mapel, kelas: String(u.kelas), durasi: u.durasi, jmlSoal: soal.length, peserta: peserta, soal: soal,
+    terdaftar: wajib.length, belumHadir: wajib.filter(r => !ada[String(r.nisn)]).map(r => r.nama + ' (' + r.kelas + ')') };
 }
 
 function daftarSiswa(q) {
@@ -603,4 +628,117 @@ function aktifGuru(q) {
   SpreadsheetApp.getActive().getSheetByName('Guru').getRange(r._row, H.Guru.indexOf('aktif') + 1).setValue(q.aktif ? true : false);
   log_(s.id, q.aktif ? 'aktifkan_guru' : 'nonaktifkan_guru', r.username);
   return { ok: true };
+}
+
+/* ---------- TAHAP 5: Master data, pengaturan, rekap, audio, cadangan ---------- */
+function kelasBaru_(list) {
+  const ada = {}; rows_('Kelas').forEach(r => ada[String(r.kelas).toUpperCase()] = 1);
+  const baru = [...new Set(list.map(k => String(k).trim()).filter(Boolean))].filter(k => !ada[k.toUpperCase()]);
+  const sh = SpreadsheetApp.getActive().getSheetByName('Kelas');
+  baru.forEach(k => sh.appendRow([safe_(k), '']));
+}
+function daftarMaster(q) {
+  auth_(q, ['guru', 'admin']);
+  return { ok: true,
+    kelas: rows_('Kelas').filter(r => r.kelas !== '').map(r => ({ kelas: String(r.kelas), wali: String(r.wali || '') })),
+    mapel: rows_('Mapel').filter(r => r.nama !== '').map(r => ({ kode: String(r.kode || ''), nama: String(r.nama) })) };
+}
+function simpanMaster(q) {
+  const s = auth_(q, 'admin'), nama = String(q.nama || '').trim(), extra = String(q.extra || '').trim();
+  if (!nama) throw new Error('Nama wajib diisi.');
+  const ss = SpreadsheetApp.getActive();
+  if (q.jenis === 'kelas') {
+    if (rows_('Kelas').some(r => String(r.kelas).toUpperCase() === nama.toUpperCase())) throw new Error('Kelas sudah ada.');
+    ss.getSheetByName('Kelas').appendRow([safe_(nama), safe_(extra)]);
+  } else if (q.jenis === 'mapel') {
+    if (rows_('Mapel').some(r => String(r.nama).toUpperCase() === nama.toUpperCase())) throw new Error('Mapel sudah ada.');
+    ss.getSheetByName('Mapel').appendRow([safe_(extra), safe_(nama)]);
+  } else throw new Error('Jenis tidak dikenal.');
+  log_(s.id, 'tambah_' + q.jenis, nama);
+  return { ok: true };
+}
+function hapusMaster(q) {
+  const s = auth_(q, 'admin'), j = q.jenis, nama = String(q.nama || '').trim().toUpperCase();
+  if (j !== 'kelas' && j !== 'mapel') throw new Error('Jenis tidak dikenal.');
+  const sh = j === 'kelas' ? 'Kelas' : 'Mapel';
+  const r = rows_(sh).find(r => String(j === 'kelas' ? r.kelas : r.nama).toUpperCase() === nama);
+  if (!r) throw new Error('Data tidak ditemukan.');
+  SpreadsheetApp.getActive().getSheetByName(sh).deleteRow(r._row);
+  log_(s.id, 'hapus_' + j, nama);
+  return { ok: true };
+}
+function ambilPengaturan(q) {
+  auth_(q, ['guru', 'admin']);
+  const o = {}; rows_('Pengaturan').forEach(r => o[r.kunci] = String(r.nilai));
+  return { ok: true, data: o };
+}
+function simpanPengaturan(q) {
+  const s = auth_(q, 'admin'), kunci = ['madrasah', 'kepala', 'nip_kepala', 'tahun_ajaran', 'kota'];
+  const sh = SpreadsheetApp.getActive().getSheetByName('Pengaturan'), ada = {};
+  rows_('Pengaturan').forEach(r => ada[r.kunci] = r);
+  kunci.forEach(k => {
+    if (!q.data || q.data[k] === undefined) return;
+    const v = safe_(String(q.data[k]).trim());
+    if (ada[k]) sh.getRange(ada[k]._row, 2).setValue(v); else sh.appendRow([k, v]);
+  });
+  log_(s.id, 'simpan_pengaturan');
+  return { ok: true };
+}
+
+// Rekap nilai lintas ujian, difilter per kelas dan/atau mapel
+function rekapNilai(q) {
+  const s = auth_(q, ['guru', 'admin']), kelas = String(q.kelas || '').trim(), mapel = String(q.mapel || '').trim().toLowerCase();
+  const uj = rows_('Ujian').filter(u => (s.peran === 'admin' || u.guru_id === s.id) && (!mapel || String(u.mapel).toLowerCase() === mapel) && (!kelas || kelasCocok_(u.kelas, kelas)));
+  const ids = {}; uj.forEach(u => ids[u.id] = 1);
+  const nil = {};
+  rows_('Hasil').filter(r => ids[r.ujian_id] && r.status !== 'berjalan' && r.nilai !== '').forEach(r => {
+    const n = String(r.nisn); (nil[n] = nil[n] || {})[r.ujian_id] = { n: Number(r.nilai), s: r.status };
+  });
+  const siswa = rows_('Siswa').filter(r => aktif_(r.aktif) && (!kelas || String(r.kelas).toUpperCase() === kelas.toUpperCase()) && uj.some(u => kelasCocok_(u.kelas, r.kelas)))
+    .map(r => ({ nisn: String(r.nisn), nama: r.nama, kelas: String(r.kelas), n: nil[String(r.nisn)] || {} }));
+  return { ok: true, ujian: uj.map(u => ({ id: u.id, judul: u.judul, mapel: u.mapel, kelas: String(u.kelas) })), siswa: siswa };
+}
+
+function unggahAudio(q) {
+  auth_(q, ['guru', 'admin']);
+  if (!/^audio\/(mpeg|mp3|mp4|x-m4a|aac|ogg|wav|x-wav|webm)$/.test(q.mime)) throw new Error('Format audio harus MP3, M4A, OGG, atau WAV.');
+  if (!q.data || q.data.length > 6000000) throw new Error('Ukuran audio terlalu besar (maksimal sekitar 4 MB).');
+  const f = folder_().createFile(Utilities.newBlob(Utilities.base64Decode(q.data), q.mime, 'audio_' + Date.now()));
+  f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return { ok: true, url: 'https://drive.google.com/uc?export=download&id=' + f.getId() };
+}
+
+/* Cadangan: salinan seluruh spreadsheet ke folder Drive, simpan 14 terakhir */
+function cadanganFolder_() {
+  const it = DriveApp.getFoldersByName('Cadangan Ujian MIN 5');
+  return it.hasNext() ? it.next() : DriveApp.createFolder('Cadangan Ujian MIN 5');
+}
+function cadangan() {
+  const ss = SpreadsheetApp.getActive(), f = cadanganFolder_();
+  const nama = 'Cadangan ' + Utilities.formatDate(new Date(), 'Asia/Jakarta', 'yyyy-MM-dd HHmm') + ' - ' + ss.getName();
+  DriveApp.getFileById(ss.getId()).makeCopy(nama, f);
+  const arr = [], it = f.getFiles();
+  while (it.hasNext()) { const x = it.next(); arr.push({ f: x, t: x.getDateCreated().getTime() }); }
+  arr.sort((a, b) => b.t - a.t); arr.slice(14).forEach(x => x.f.setTrashed(true));
+  return nama;
+}
+// Jalankan sekali dari editor Apps Script untuk mengaktifkan cadangan harian
+function aktifkanCadangan() {
+  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'cadangan').forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('cadangan').timeBased().everyDays(1).atHour(1).create();
+  Logger.log('Cadangan otomatis aktif: setiap hari sekitar pukul 01.00, menyimpan 14 salinan terakhir.');
+}
+function cadangkanSekarang(q) {
+  const s = auth_(q, 'admin'), nama = cadangan();
+  log_(s.id, 'cadangan_manual', nama);
+  return { ok: true, nama: nama };
+}
+function daftarCadangan(q) {
+  auth_(q, 'admin');
+  const it = cadanganFolder_().getFiles(), data = [];
+  while (it.hasNext()) { const f = it.next(); data.push({ nama: f.getName(), t: f.getDateCreated().getTime(), url: f.getUrl() }); }
+  data.sort((a, b) => b.t - a.t);
+  let aktif = false;
+  try { aktif = ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'cadangan'); } catch (e) {}
+  return { ok: true, data: data.slice(0, 15), aktif: aktif };
 }
